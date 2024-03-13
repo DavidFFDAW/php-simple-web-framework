@@ -13,6 +13,9 @@ class Autoload
             if (file_exists(DIR . 'db/' . $class . '.php')) {
                 require_once DIR . 'db/' . $class . '.php';
             }
+            if (file_exists(DIR . 'middlewares/' . $class . '.php')) {
+                require_once DIR . 'middlewares/' . $class . '.php';
+            }
             if (file_exists(DIR . 'utils/' . $class . '.php')) {
                 require_once DIR . 'utils/' . $class . '.php';
             }

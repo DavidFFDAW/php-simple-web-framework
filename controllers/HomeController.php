@@ -11,4 +11,10 @@ class HomeController extends BaseController
     {
         return View::render('home.index', ['title' => 'Home']);
     }
+
+    public function admin()
+    {
+        // dd($this->getRequest());
+        return View::render('home.index', ['title' => 'Admin']);
+    }
 }

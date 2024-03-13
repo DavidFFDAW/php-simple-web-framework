@@ -3,8 +3,8 @@
 define('DEBUG', true);
 define('LANG', 'es');
 define('APP_TITLE', 'App');
-define('APP_HOST', '/web-framework');
-define('APP_URL', $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . '/' . APP_HOST . '/');
+define('APP_HOST', '/php-simple-web-framework');
+define('APP_URL', $_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST'] . APP_HOST . '/');
 
 ini_set('display_errors', DEBUG);
 ini_set('display_startup_errors', DEBUG);
