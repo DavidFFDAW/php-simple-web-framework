@@ -10,32 +10,33 @@ class Router
         $this->request = $request;
     }
 
-    protected function setRoute($method, $url, $controllerAndMethod)
+    protected function setRoute($method, $url, $controllerAndMethod, $middlewares = [])
     {
         $this->routes[$method][APP_HOST . $url] = array(
             'controller' => $controllerAndMethod[0],
-            'method' => $controllerAndMethod[1]
+            'method' => $controllerAndMethod[1],
+            'middlewares' => $middlewares
         );
     }
 
-    public function get(string $url, $controllerAndMethod)
+    public function get(string $url, $controllerAndMethod, $middlewares = [])
     {
-        $this->setRoute('GET', $url, $controllerAndMethod);
+        $this->setRoute('GET', $url, $controllerAndMethod, $middlewares);
     }
 
-    public function post(string $url, $controllerAndMethod)
+    public function post(string $url, $controllerAndMethod, $middlewares = [])
     {
-        $this->setRoute('POST', $url, $controllerAndMethod);
+        $this->setRoute('POST', $url, $controllerAndMethod, $middlewares);
     }
 
-    public function put(string $url, $controllerAndMethod)
+    public function put(string $url, $controllerAndMethod, $middlewares = [])
     {
-        $this->setRoute('PUT', $url, $controllerAndMethod);
+        $this->setRoute('PUT', $url, $controllerAndMethod, $middlewares);
     }
 
-    public function delete(string $url, $controllerAndMethod)
+    public function delete(string $url, $controllerAndMethod, $middlewares = [])
     {
-        $this->setRoute('DELETE', $url, $controllerAndMethod);
+        $this->setRoute('DELETE', $url, $controllerAndMethod, $middlewares);
     }
 
     protected function callControllerMethod($controller, $method, $params = [])
@@ -46,12 +47,52 @@ class Router
         }
     }
 
-    public function group($middlewares)
+    // public function group($middlewares)
+    // {
+    //     foreach ($middlewares as $Middleware) {
+    //         $middleObject = new $Middleware();
+    //         $shouldKeep = $middleObject->validate($this->request);
+    //     }
+    // }
+
+    public function group($middlewares, $callback)
     {
-        foreach ($middlewares as $Middleware) {
-            $middleObject = new $Middleware();
-            $shouldKeep = $middleObject->validate($this->request);
+        return $callback($middlewares);
+    }
+
+    private function searchAndGetRoute($method, $url)
+    {
+        if (!isset($this->routes[$method]) || empty($this->routes[$method])) {
+            throw new Exception('Route not found or method not allowed', 405);
         }
+
+        foreach ($this->routes[$method] as $routeUrl => $target) {
+            $controller = $target['controller'];
+            $controllerMethod = $target['method'];
+            $middlewares = $target['middlewares'];
+            $pattern = preg_replace('/\/:([^\/]+)/', '/(?P<$1>[^/]+)', $routeUrl);
+
+            if ($routeUrl === $url) {
+                return [
+                    'controller' => $controller,
+                    'controllerMethod' => $controllerMethod,
+                    'middlewares' => $middlewares,
+                    'params' => [],
+                ];
+            }
+
+            if (preg_match('#^' . $pattern . '$#', $url, $matches)) {
+                $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY); // Only keep named subpattern matches
+                return [
+                    'controller' => $controller,
+                    'controllerMethod' => $controllerMethod,
+                    'middlewares' => $middlewares,
+                    'params' => $params
+                ];
+            }
+        }
+
+        throw new Exception('Route ' . $url . ' not found', 404);
     }
 
     public function matchRoute()
@@ -63,33 +104,17 @@ class Router
             $this->request->checkCsrfToken();
         }
 
-        if (!isset($this->routes[$method]) || empty($this->routes[$method])) {
-            throw new Exception('Route not found or method not allowed', 405);
+        $foundRoute = $this->searchAndGetRoute($method, $url);
+
+        if (!empty($foundRoute['middlewares'])) {
+            foreach ($foundRoute['middlewares'] as $Middleware) {
+                $middleObject = new $Middleware();
+                $shouldKeep = $middleObject->validate($this->request);
+                if (!$shouldKeep) break;
+            }
         }
 
-        foreach ($this->routes[$method] as $routeUrl => $target) {
-            $controller = $target['controller'];
-            $controllerMethod = $target['method'];
-            // Use named subpatterns in the regular expression pattern to capture each parameter value separately
-            $pattern = preg_replace('/\/:([^\/]+)/', '/(?P<$1>[^/]+)', $routeUrl);
-
-            $Controller = new $controller($this->request);
-
-            if ($routeUrl === $url) {
-                return $this->callControllerMethod($Controller, $controllerMethod);
-            }
-
-            if (preg_match('#^' . $pattern . '$#', $url, $matches)) {
-                // Pass the captured parameter values as named arguments to the target function
-
-                /*
-                 Cambiar todo esto con middlewares y con controllers
-                */
-                $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY); // Only keep named subpattern matches
-                return $this->callControllerMethod($Controller, $controllerMethod, $params);
-            }
-
-            throw new Exception('Route not found', 404);
-        }
+        $controllerInstance = new $foundRoute['controller']($this->request);
+        return $this->callControllerMethod($controllerInstance, $foundRoute['controllerMethod'], $foundRoute['params']);
     }
 }

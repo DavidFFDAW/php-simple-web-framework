@@ -11,6 +11,7 @@ class Request
     public $cookies;
     public $session;
     public $headers;
+    public $extras = [];
 
     public function __construct()
     {
@@ -37,6 +38,11 @@ class Request
         return isset($this->params[$paramKey]);
     }
 
+    public function setExtra(string $key, $value)
+    {
+        $this->extras[$key] = $value;
+    }
+
     public function getValue(string $key)
     {
         if (isset($this->params[$key])) {
@@ -46,6 +52,17 @@ class Request
             return $this->body[$key];
         }
         return null;
+    }
+
+    public function hasHeader(string $headerKey)
+    {
+        return isset($this->headers[$headerKey]);
+    }
+
+    public function redirect($endpoint)
+    {
+        header('Location: ' . substr(APP_URL, 0, -1) . $endpoint);
+        exit;
     }
 
     private function getCsrfToken()

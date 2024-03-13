@@ -14,6 +14,10 @@ try {
 
     $router->get('/', [HomeController::class, 'index']);
 
+    $router->group([AuthMiddleware::class], function ($middlewares) use ($router) {
+        $router->get('/admin', [HomeController::class, 'admin'], $middlewares);
+    });
+
     // dispatch
     $router->matchRoute();
 } catch (Exception $e) {
